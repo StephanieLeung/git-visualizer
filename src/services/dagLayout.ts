@@ -1,26 +1,39 @@
 import type { Commit } from './gitHistory'
 
-// Lays the commit DAG out in lanes: topological order, a lane per branch, a colour per lane
+// Lays the commit graph out in lanes, the way `git log --graph` and VS Code's Git Graph do:
+// each branch keeps a lane from its tip down to where it forks, and freed lanes are reused.
 
-export interface CommitNode extends Commit {
+export interface LayoutNode extends Commit {
   children: string[]
-}
-
-export interface LayoutNode extends CommitNode {
   lane: number
-  // Index in topological order (oldest first)
-  order: number
+  // 0 = newest commit
+  row: number
   x: number
   y: number
   color: string
 }
 
-export const LANE_WIDTH = 80
+// Line from a child commit down to one of its parents
+export interface LayoutEdge {
+  from: string
+  to: string
+  // Lane the line runs down between the two commits
+  lane: number
+  color: string
+}
+
+export interface GraphLayout {
+  nodes: LayoutNode[]
+  edges: LayoutEdge[]
+  laneCount: number
+}
+
+export const LANE_WIDTH = 32
 export const ROW_HEIGHT = 60
 
-// main/master always occupy lane 0 and are drawn in this colour
+// main/master's first-parent history always occupies lane 0, drawn in this colour
 const MAIN_LANE_COLOR = '#000000'
-// Colours for the other lanes, handed out in lane order
+// Colours handed out to other lanes as they open
 const LANE_PALETTE = [
   '#3b82f6', // blue
   '#ec4899', // pink
@@ -31,154 +44,90 @@ const LANE_PALETTE = [
   '#22c55e', // emerald
   '#64748b' // slate
 ]
-const FALLBACK_COLOR = '#999'
+const MAIN_BRANCHES = ['main', 'master']
 
-export class DAGLayout {
-  private nodes = new Map<string, CommitNode>()
-  private sorted: string[] = []
-  private lanes = new Map<string, number>()
-  private branchLane = new Map<string, number>()
+// Tip of the trunk: local main/master if present, otherwise a remote one
+function findMainTip(commits: Commit[]): string | undefined {
+  for (const kind of ['local', 'remote'] as const) {
+    for (const name of MAIN_BRANCHES) {
+      const tip = commits.find((c) => c.refs.some((r) => r.kind === kind && r.branch === name))
+      if (tip) return tip.hash
+    }
+  }
+}
 
-  constructor(commits: Commit[]) {
-    this.buildDAG(commits)
-    this.topologicalSort()
-    this.assignLanes()
+// `commits` must list children before their parents (git log --date-order guarantees this)
+export function layoutGraph(commits: Commit[]): GraphLayout {
+  const byHash = new Map(commits.map((c) => [c.hash, c]))
+
+  const children = new Map<string, string[]>()
+  for (const commit of commits) {
+    for (const parent of commit.parents) {
+      if (byHash.has(parent)) children.set(parent, [...(children.get(parent) ?? []), commit.hash])
+    }
   }
 
-  // Positioned nodes, newest commit at the top (largest order → y = 0)
-  getLayout(): LayoutNode[] {
-    const colorsByLane = this.assignLaneColors()
-    const total = this.sorted.length
+  const mainChain = new Set<string>()
+  for (let hash = findMainTip(commits); hash && byHash.has(hash) && !mainChain.has(hash);) {
+    mainChain.add(hash)
+    hash = byHash.get(hash)!.parents[0]
+  }
+  const reserveMain = mainChain.size > 0
 
-    return this.sorted.map((hash, order) => {
-      const node = this.nodes.get(hash)!
-      const lane = this.lanes.get(hash) || 0
+  // lanes[i] = the commit lane i is waiting for next, or null when the lane is free
+  const lanes: (string | null)[] = reserveMain ? [null] : []
+  const laneColors: string[] = reserveMain ? [MAIN_LANE_COLOR] : []
+  let nextColor = 0
 
-      return {
-        ...node,
-        lane,
-        order,
-        x: lane * LANE_WIDTH,
-        y: (total - 1 - order) * ROW_HEIGHT,
-        color: colorsByLane.get(lane) || FALLBACK_COLOR
-      }
-    })
+  // Opens the leftmost free lane (never lane 0 while it's reserved for main) waiting for `hash`
+  const openLane = (hash: string): number => {
+    let lane = lanes.indexOf(null, reserveMain ? 1 : 0)
+    if (lane === -1) lane = lanes.length
+    lanes[lane] = hash
+    laneColors[lane] = LANE_PALETTE[nextColor++ % LANE_PALETTE.length]
+    return lane
   }
 
-  // One node per commit, with each parent linked back to its children
-  private buildDAG(commits: Commit[]) {
-    commits.forEach((commit) => {
-      this.nodes.set(commit.hash, {
-        hash: commit.hash,
-        parents: commit.parents,
-        children: [],
-        message: commit.message,
-        refs: commit.refs
-      })
-    })
+  const nodes: LayoutNode[] = []
+  const edges: LayoutEdge[] = []
 
-    commits.forEach((commit) => {
-      commit.parents.forEach((parent) => {
-        this.nodes.get(parent)?.children.push(commit.hash)
-      })
-    })
-  }
+  commits.forEach((commit, row) => {
+    const waiting = lanes.flatMap((expected, i) => (expected === commit.hash ? [i] : []))
 
-  // Depth-first post-order: each commit is pushed after its parents, so `sorted` is oldest first
-  private topologicalSort() {
-    const visited = new Set<string>()
-    const visiting = new Set<string>()
+    let lane: number
+    if (mainChain.has(commit.hash)) lane = 0
+    else if (waiting.length > 0) lane = waiting[0]
+    else lane = openLane(commit.hash) // branch tip: nothing above leads here
 
-    const visit = (hash: string) => {
-      if (visited.has(hash) || visiting.has(hash)) return // already placed, or a cycle
-      visiting.add(hash)
-      this.nodes.get(hash)?.parents.forEach((parent) => visit(parent))
-      visiting.delete(hash)
-      visited.add(hash)
-      this.sorted.push(hash)
+    // Any other lanes waiting for this commit are branches forking from it; they end here
+    for (const i of waiting) if (i !== lane) lanes[i] = null
+
+    // Parents outside the graph (e.g. shallow clones) would hold their lane open forever
+    const [firstParent, ...mergeParents] = commit.parents.filter((p) => byHash.has(p))
+
+    // The commit's own lane continues down to its first parent (or ends at a root commit)
+    lanes[lane] = firstParent ?? null
+    if (firstParent) {
+      edges.push({ from: commit.hash, to: firstParent, lane, color: laneColors[lane] })
     }
 
-    this.nodes.forEach((_, hash) => visit(hash))
-  }
+    // Merged-in parents join a lane already heading to them, or open a new one
+    for (const parent of mergeParents) {
+      const existing = lanes.indexOf(parent)
+      const target = existing === -1 ? openLane(parent) : existing
+      edges.push({ from: commit.hash, to: parent, lane: target, color: laneColors[target] })
+    }
 
-  // main/master → lane 0; each other named branch keeps one lane; undecorated commits follow
-  // their first parent
-  private assignLanes() {
-    let nextLaneId = 0
-    // TODO: while nextLaneId is still 0 this returns lane 1 without advancing, so lane 1 can be shared
-    const allocateLane = () => (nextLaneId === 0 ? 1 : nextLaneId++)
-
-    this.sorted.forEach((hash) => {
-      const node = this.nodes.get(hash)!
-      const branchNames = this.normalizeRefs(node.refs)
-      let lane: number
-
-      if (branchNames.includes('main') || branchNames.includes('master')) {
-        lane = 0
-        this.branchLane.set('main', 0)
-        this.branchLane.set('master', 0)
-      } else if (branchNames.length > 0) {
-        // Reuse this branch's lane, or open a new one (lane 0 is reserved for main/master)
-        const branch = branchNames[0]
-        const existing = this.branchLane.get(branch)
-        if (existing !== undefined) {
-          lane = existing
-        } else {
-          lane = Math.max(nextLaneId, 1)
-          nextLaneId = lane + 1
-          this.branchLane.set(branch, lane)
-        }
-      } else if (node.parents.length > 0) {
-        // Undecorated commit (merges included): stay in the first parent's lane
-        lane = this.lanes.get(node.parents[0]) ?? allocateLane()
-      } else {
-        // Undecorated root commit
-        lane = allocateLane()
-      }
-
-      this.lanes.set(hash, lane)
+    nodes.push({
+      ...commit,
+      children: children.get(commit.hash) ?? [],
+      lane,
+      row,
+      x: lane * LANE_WIDTH,
+      y: row * ROW_HEIGHT,
+      color: laneColors[lane]
     })
-  }
+  })
 
-  // Lane 0 gets MAIN_LANE_COLOR; other lanes take unused palette colours, cycling once exhausted
-  private assignLaneColors(): Map<number, string> {
-    const colorsByLane = new Map<number, string>([[0, MAIN_LANE_COLOR]])
-    const used = new Set<string>([MAIN_LANE_COLOR])
-    let idx = 0
-
-    const lanes = Array.from(new Set(this.lanes.values())).sort((a, b) => a - b)
-    lanes.forEach((lane) => {
-      if (lane === 0) return
-
-      let color = LANE_PALETTE[idx % LANE_PALETTE.length]
-      let attempts = 0
-      while (used.has(color) && attempts < LANE_PALETTE.length) {
-        idx++
-        color = LANE_PALETTE[idx % LANE_PALETTE.length]
-        attempts++
-      }
-      colorsByLane.set(lane, color)
-      used.add(color)
-      idx++
-    })
-
-    return colorsByLane
-  }
-
-  // Bare branch names from decorations like "HEAD -> main", "origin/main", "tag: v1.0".
-  // TODO: also splits on '-', so "feature/user-auth" yields "feature/user" and "auth"
-  private normalizeRefs(refs: string[]): string[] {
-    const names: string[] = []
-    refs.forEach((ref) => {
-      ref
-        .split(/[:,\->\s]+/)
-        .map((part) => part.trim())
-        .filter(Boolean)
-        .forEach((part) => {
-          if (part === 'HEAD' || part === 'tag' || part === 'origin') return
-          names.push(part.replace('remotes/', '').replace('origin/', ''))
-        })
-    })
-    return Array.from(new Set(names))
-  }
+  return { nodes, edges, laneCount: Math.max(lanes.length, 1) }
 }

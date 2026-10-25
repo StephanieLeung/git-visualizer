@@ -1,3 +1,8 @@
+import { truncate } from '../../utils/truncate'
+
+export const TOOLTIP_WIDTH = 300
+export const TOOLTIP_HEIGHT = 100
+
 interface CommitTooltipProps {
   // Top-left corner of the card in graph coordinates; text is inset 10px
   x: number
@@ -11,10 +16,10 @@ interface CommitTooltipProps {
   actionColor: string
   onMouseEnter: () => void
   onMouseLeave: () => void
-  onClick?: () => void
+  onClick: () => void
 }
 
-// Hover card drawn inside the commit graph SVG for the HEAD and branch-tip commits
+// Hover card drawn inside the commit graph SVG for HEAD and for commits that can be checked out
 export function CommitTooltip({
   x,
   y,
@@ -36,8 +41,8 @@ export function CommitTooltip({
       <rect
         x={x}
         y={y}
-        width="300"
-        height="100"
+        width={TOOLTIP_WIDTH}
+        height={TOOLTIP_HEIGHT}
         fill="white"
         stroke={borderColor}
         strokeWidth={borderWidth}
@@ -49,10 +54,10 @@ export function CommitTooltip({
         {title}
       </text>
       <text x={textX} y={y + 35} fontSize="10" fill="#666" fontWeight="600" fontFamily="sans-serif">
-        Branch: {branchLabel}
+        Branch: {truncate(branchLabel, 44)}
       </text>
       <text x={textX} y={y + 50} fontSize="10" fill="#666" fontFamily="sans-serif">
-        {message}
+        {truncate(message, 50)}
       </text>
       <text
         x={textX}
@@ -63,7 +68,7 @@ export function CommitTooltip({
         fontFamily="sans-serif"
         style={{ textDecoration: 'underline' }}
       >
-        {action}
+        {truncate(action, 50)}
       </text>
     </g>
   )

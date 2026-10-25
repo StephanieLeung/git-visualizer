@@ -1,16 +1,15 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { GitSnapshot } from './git'
+import type { GitRunResult, GitSnapshot } from './git'
 
 // Typed bridge exposed to the renderer as `window.API`; each method maps 1:1 to a channel in ipc.ts
 const api = {
   git: {
-    // Runs `git <command>` in the repo; always resolves with stdout, even when git fails
-    run: (command: string): Promise<string> => ipcRenderer.invoke('git:run', command),
-    // Raw `git log --all` output for the DAG (parsed by src/services/gitHistory.ts)
-    getHistory: (): Promise<string> => ipcRenderer.invoke('git:getHistory'),
-    // `git status` text plus the last 5 commits
-    startup: (): Promise<GitSnapshot> => ipcRenderer.invoke('git:startup'),
-    hasChanges: (): Promise<boolean> => ipcRenderer.invoke('git:hasChanges')
+    // Runs git with these arguments in the selected repo (no shell) and reports the outcome
+    run: (args: string[]): Promise<GitRunResult> => ipcRenderer.invoke('git:run', args),
+    // Raw commit graph output (parsed by src/services/gitHistory.ts)
+    history: (): Promise<string> => ipcRenderer.invoke('git:history'),
+    // Status, recent log, dirty/stash flags and a key that changes whenever refs move
+    snapshot: (): Promise<GitSnapshot> => ipcRenderer.invoke('git:snapshot')
   },
   path: {
     // Sets the repository every git command runs in

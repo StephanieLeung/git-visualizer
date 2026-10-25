@@ -10,12 +10,12 @@ function statusLineClass(line: string): string {
 
 // "Log" tab: raw `git status` output and the last 5 commits
 export function LogView() {
-  const { status, logs, loading } = useGit()
+  const { status, logs, ready } = useGit()
 
   return (
     <div className="flex-1 p-4 overflow-auto bg-purple-50/30">
       <div className="font-mono text-xs space-y-1 bg-white p-4 rounded-2xl border-2 border-purple-100">
-        {loading ? (
+        {!ready ? (
           <div className="text-gray-500">Loading git status...</div>
         ) : (
           <>
