@@ -1,31 +1,210 @@
 @import 'tailwindcss';
 
-html {
-  box-sizing: border-box;
+/*
+ * GitHub Desktop's palette (Primer v1). Light values here, dark overrides below, which apply
+ * while the OS is in dark mode (prefers-color-scheme).
+ *
+ * `static` emits every variable even if no utility uses it: the graph reads its lane colours as
+ * var(--color-graph-N) names built at runtime (services/dagLayout.ts), which Tailwind can't see.
+ */
+@theme static {
+  --font-sans:
+    system-ui, -apple-system, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif,
+    'Apple Color Emoji', 'Segoe UI Emoji';
+  --font-mono:
+    ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+
+  /* Surfaces */
+  --color-canvas: #ffffff;
+  --color-canvas-subtle: #f6f8fa;
+  --color-canvas-overlay: #ffffff;
+  --color-hover: rgba(208, 215, 222, 0.32);
+  --color-border: #e1e4e8;
+
+  /* Text */
+  --color-fg: #24292e;
+  --color-fg-muted: #586069;
+  --color-fg-subtle: #959da5;
+  --color-fg-on-emphasis: #ffffff;
+
+  /* Accent and states */
+  --color-accent: #0366d6;
+  --color-accent-hover: #0372ef;
+  --color-accent-fg: #0366d6;
+  --color-accent-subtle: #f1f8ff;
+  --color-success-fg: #1a7f37;
+  --color-danger-fg: #cb2431;
+  --color-danger-subtle: #ffeef0;
+  --color-danger-border: #fdaeb7;
+  --color-attention-fg: #9a6700;
+  --color-attention-subtle: #fff8c5;
+  --color-selection: rgba(3, 102, 214, 0.2);
+
+  /* Secondary buttons */
+  --color-btn: #fafbfc;
+  --color-btn-hover: #f3f4f6;
+  --color-btn-border: rgba(27, 31, 35, 0.15);
+
+  /* Title bar and toolbar, dark in both themes */
+  --color-chrome: #24292e;
+  --color-chrome-hover: #2f363d;
+  --color-chrome-border: #141414;
+  --color-chrome-fg: #ffffff;
+  --color-chrome-fg-muted: #9da5ad;
+  --color-chrome-focus: #58a6ff;
+
+  /* Commit graph lanes: main/master's lane, then the colours handed out to other lanes */
+  --color-graph-main: #24292e;
+  --color-graph-1: #0366d6;
+  --color-graph-2: #28a745;
+  --color-graph-3: #6f42c1;
+  --color-graph-4: #e36209;
+  --color-graph-5: #ea4aaa;
+  --color-graph-6: #d73a49;
+  --color-graph-7: #b08800;
+  --color-graph-8: #0598bc;
+
+  --color-scrollbar: rgba(0, 0, 0, 0.2);
+  --color-scrollbar-hover: rgba(0, 0, 0, 0.4);
+
+  /* --shadow-overlay is a plain variable in the base layer below, not a token here: Tailwind
+     copies a @theme shadow's light value into its utility class, so the dark override would never
+     reach it. */
+
+  --animate-popover-in: popover-in 140ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  @keyframes popover-in {
+    from {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
 }
 
-html,
-body {
-  height: 100%;
-  margin: 0;
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-canvas: #24292e;
+    --color-canvas-subtle: #2f363d;
+    --color-canvas-overlay: #2f363d;
+    --color-hover: rgba(177, 186, 196, 0.12);
+    --color-border: #141414;
+
+    --color-fg: #d1d5da;
+    --color-fg-muted: #9da5ad;
+    --color-fg-subtle: #6a737d;
+
+    --color-accent-fg: #58a6ff;
+    --color-accent-subtle: rgba(56, 139, 253, 0.15);
+    --color-success-fg: #34d058;
+    --color-danger-fg: #f97583;
+    --color-danger-subtle: rgba(248, 81, 73, 0.15);
+    --color-danger-border: rgba(248, 81, 73, 0.4);
+    --color-attention-fg: #d29922;
+    --color-attention-subtle: rgba(187, 128, 9, 0.15);
+    --color-selection: rgba(56, 139, 253, 0.4);
+
+    --color-btn: #2f363d;
+    --color-btn-hover: #444d56;
+    --color-btn-border: #141414;
+
+    --color-chrome: #1d2125;
+    --color-chrome-fg: #d1d5da;
+
+    --color-graph-main: #d1d5da;
+    --color-graph-1: #58a6ff;
+    --color-graph-2: #3fb950;
+    --color-graph-3: #a371f7;
+    --color-graph-4: #f0883e;
+    --color-graph-5: #db61a2;
+    --color-graph-6: #f85149;
+    --color-graph-7: #d29922;
+    --color-graph-8: #39c5cf;
+
+    --color-scrollbar: rgba(255, 255, 255, 0.2);
+    --color-scrollbar-hover: rgba(255, 255, 255, 0.4);
+
+    --shadow-overlay: 0 8px 24px rgba(1, 4, 9, 0.6);
+  }
+}
+
+/* Read at runtime, so the dark value above applies (see the note in @theme) */
+@utility shadow-overlay {
+  box-shadow: var(--shadow-overlay);
+}
+
+@layer base {
+  :root {
+    color-scheme: light dark;
+    /* Light value; layered, so the unlayered dark override above wins */
+    --shadow-overlay: 0 8px 24px rgba(149, 157, 165, 0.2);
+  }
+
+  html,
+  body {
+    height: 100%;
+    margin: 0;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background-color: var(--color-selection);
+  }
+
+  input,
+  textarea {
+    caret-color: var(--color-accent-fg);
+  }
+
+  /* Drawn inside the element so it isn't clipped by scrolling lists or the toolbar */
+  :focus-visible {
+    outline: 2px solid var(--color-accent-fg);
+    outline-offset: -2px;
+  }
+
+  /* GitHub Desktop's slim rounded scrollbars */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--color-scrollbar);
+    background-clip: padding-box;
+    border: 2px solid transparent;
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-scrollbar-hover);
+  }
 }
 
 /* Fixed title bar, rendered by its own React root (see main.tsx) */
 #titlebar {
   display: block;
   position: fixed;
-  height: 44px;
+  height: 32px;
   width: 100%;
   z-index: 100;
 }
 
 #root {
-  /* Clears the fixed 44px title bar */
-  padding: 44px 0 0;
+  /* Clears the fixed 32px title bar */
+  padding: 32px 0 0;
   width: 100%;
   height: 100%;
-  /* Carried over from the original Vite template's App.css; still affects layout */
-  max-width: 1280px;
-  margin: 0 auto;
-  text-align: center;
 }

@@ -1,36 +1,43 @@
-import { Terminal } from 'lucide-react'
-import { useTerminal, type CommandStatus } from '../context/TerminalContext'
+import { CheckIcon, TerminalIcon, XIcon } from '@primer/octicons-react'
+import { useTerminal } from '../context/TerminalContext'
+import { Spinner } from './ui/spinner'
+import { cn } from './ui/utils'
 
-const STATUS_STYLES: Record<Exclude<CommandStatus, 'idle'>, { icon: string; className: string }> = {
-  running: { icon: '…', className: 'text-purple-400' },
-  ok: { icon: '✓', className: 'text-green-600' },
-  error: { icon: '✗', className: 'text-red-600' }
-}
-
-// Read-only "terminal" showing the last git command the UI ran and how it went
+// Status bar showing the last git command the UI ran and how it went (read-only)
 export function TerminalPanel() {
   const { command, status, summary, output } = useTerminal()
-  const style = status === 'idle' ? null : STATUS_STYLES[status]
 
   return (
-    <div className="bg-gradient-to-r from-purple-100 via-pink-100 to-blue-100 border-t-2 border-purple-200 p-3">
-      <div className="bg-white rounded-2xl border-2 border-purple-200 px-4 py-2 flex items-center gap-2 shadow-sm">
-        <Terminal className="w-4 h-4 text-purple-500" />
-        <span className="text-purple-600 font-mono text-sm font-semibold">$</span>
-        <span
-          className={`flex-1 min-w-0 truncate text-left text-sm font-mono ${command ? 'text-purple-700' : 'text-purple-300'}`}
-        >
-          {command || 'git pull'}
+    <footer className="flex h-7 shrink-0 items-center gap-2 border-t border-border bg-canvas-subtle px-3 text-xs">
+      <TerminalIcon size={16} className="shrink-0 text-fg-muted" />
+      <span className="shrink-0 select-none font-mono text-fg-muted">$</span>
+      {command ? (
+        <span title={command} className="min-w-0 flex-1 truncate font-mono text-fg">
+          {command}
         </span>
-        {style && (
+      ) : (
+        <span className="min-w-0 flex-1 truncate text-fg-muted">No commands run yet</span>
+      )}
+
+      {/* Announced to screen readers as each command finishes */}
+      <span aria-live="polite" className="flex max-w-[50%] min-w-0 shrink-0 justify-end">
+        {status !== 'idle' && (
           <span
             title={output || summary}
-            className={`shrink-0 max-w-[50%] truncate text-xs font-mono ${style.className}`}
+            className={cn(
+              'flex min-w-0 items-center gap-1.5 font-mono',
+              status === 'running' && 'text-fg-muted',
+              status === 'ok' && 'text-success-fg',
+              status === 'error' && 'text-danger-fg'
+            )}
           >
-            {style.icon} {status === 'running' ? 'running' : summary}
+            {status === 'running' && <Spinner className="size-3" />}
+            {status === 'ok' && <CheckIcon size={16} className="shrink-0" />}
+            {status === 'error' && <XIcon size={16} className="shrink-0" />}
+            <span className="truncate">{status === 'running' ? 'running' : summary}</span>
           </span>
         )}
-      </div>
-    </div>
+      </span>
+    </footer>
   )
 }

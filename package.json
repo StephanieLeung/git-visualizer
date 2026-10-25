@@ -12,11 +12,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@radix-ui/react-accordion": "^1.2.12",
+    "@primer/octicons-react": "^19.40.0",
     "@radix-ui/react-popover": "^1.1.15",
     "@tailwindcss/vite": "^4.1.18",
     "clsx": "^2.1.1",
-    "lucide-react": "^0.562.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "tailwind-merge": "^3.4.0",

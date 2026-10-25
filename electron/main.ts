@@ -19,6 +19,11 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
 function createWindow() {
   const win = new BrowserWindow({
     icon: path.join(process.env.VITE_PUBLIC, 'electron-vite.svg'),
+    // GitHub Desktop's default window size (desktop/desktop, app/src/main-process/app-window.ts)
+    width: 960,
+    height: 660,
+    minWidth: 720,
+    minHeight: 480,
     // Frameless: the renderer draws its own title bar (src/components/TitleBar.tsx)
     frame: false,
     webPreferences: {

@@ -1,31 +1,28 @@
 import { useState } from 'react'
 import { DAGGraph } from './graph/DAGGraph'
-import { Landing } from './Landing'
 import { LogView } from './LogView'
-import { MenuBar, type Tab } from './MenuBar'
+import { TabBar, type Tab } from './TabBar'
 import { TerminalPanel } from './TerminalPanel'
+import { Toolbar } from './Toolbar'
 
-// Main screen once a repo is open: tab bar, the active tab, and the command panel
+// Main screen once a repo is open: toolbar, tabs, the active tab, and the command status bar
 export function GitVisualizer() {
   const [activeTab, setActiveTab] = useState<Tab>('tree')
 
   return (
-    <div className="flex flex-col h-full justify-between">
-      <MenuBar activeTab={activeTab} setActiveTab={setActiveTab} />
+    <div className="flex h-full flex-col">
+      {/* Opening another repository from the toolbar shows its graph */}
+      <Toolbar onRepositoryOpen={() => setActiveTab('tree')} />
+      <TabBar activeTab={activeTab} setActiveTab={setActiveTab} />
 
-      <div className="flex-1 overflow-hidden flex">
-        {activeTab === 'repos' && (
-          <div className="w-full flex justify-center items-center">
-            <Landing onOpen={() => setActiveTab('tree')} />
-          </div>
-        )}
-        {activeTab === 'tree' && (
-          <div className="flex-1 h-full w-full overflow-hidden">
-            <DAGGraph />
-          </div>
-        )}
-        {activeTab === 'log' && <LogView />}
-      </div>
+      <main
+        id={`panel-${activeTab}`}
+        role="tabpanel"
+        aria-labelledby={`tab-${activeTab}`}
+        className="flex min-h-0 flex-1"
+      >
+        {activeTab === 'tree' ? <DAGGraph /> : <LogView />}
+      </main>
 
       <TerminalPanel />
     </div>

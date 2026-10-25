@@ -29,21 +29,13 @@ export interface GraphLayout {
 }
 
 export const LANE_WIDTH = 32
-export const ROW_HEIGHT = 60
+export const ROW_HEIGHT = 52
 
-// main/master's first-parent history always occupies lane 0, drawn in this colour
-const MAIN_LANE_COLOR = '#000000'
+// Colours are CSS variables from src/index.css, so the graph follows the light/dark theme.
+// main/master's first-parent history always occupies lane 0, drawn in the foreground colour
+const MAIN_LANE_COLOR = 'var(--color-graph-main)'
 // Colours handed out to other lanes as they open
-const LANE_PALETTE = [
-  '#3b82f6', // blue
-  '#ec4899', // pink
-  '#10b981', // green
-  '#a855f7', // purple
-  '#f59e0b', // amber
-  '#f97316', // orange
-  '#22c55e', // emerald
-  '#64748b' // slate
-]
+const LANE_PALETTE = Array.from({ length: 8 }, (_, i) => `var(--color-graph-${i + 1})`)
 const MAIN_BRANCHES = ['main', 'master']
 
 // Tip of the trunk: local main/master if present, otherwise a remote one
