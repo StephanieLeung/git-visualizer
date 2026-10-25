@@ -1,11 +1,13 @@
 import { useState } from 'react'
+import { ErrorDialog } from './ErrorDialog'
 import { DAGGraph } from './graph/DAGGraph'
 import { LogView } from './LogView'
 import { TabBar, type Tab } from './TabBar'
 import { TerminalPanel } from './TerminalPanel'
 import { Toolbar } from './Toolbar'
 
-// Main screen once a repo is open: toolbar, tabs, the active tab, and the command status bar
+// Main screen once a repo is open: toolbar, tabs, the active tab, the command status bar, and
+// the dialog a failed command opens
 export function GitVisualizer() {
   const [activeTab, setActiveTab] = useState<Tab>('tree')
 
@@ -25,6 +27,7 @@ export function GitVisualizer() {
       </main>
 
       <TerminalPanel />
+      <ErrorDialog />
     </div>
   )
 }

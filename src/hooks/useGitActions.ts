@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useGit } from '../context/GitContext'
-import { useTerminal } from '../context/TerminalContext'
+import { useTerminal, type RunOptions } from '../context/TerminalContext'
 import type { CheckoutTarget } from '../services/gitHistory'
 
 // Every action that changes the repo. Each one is echoed in the TerminalPanel and followed by a
@@ -10,8 +10,8 @@ export function useGitActions() {
   const { run } = useTerminal()
 
   return useMemo(() => {
-    const mutate = async (args: string[]) => {
-      const result = await run(args)
+    const mutate = async (args: string[], options?: RunOptions) => {
+      const result = await run(args, options)
       await refetchGit()
       return result
     }
@@ -33,9 +33,10 @@ export function useGitActions() {
       stash: () => mutate(['stash', '-u']),
       unstash: () => mutate(['stash', 'pop']),
       checkout: (target: CheckoutTarget) => mutate(target.args),
-      // Creates the branch at `startPoint` (a commit hash, so no upstream gets set) and switches to it
+      // Creates the branch at `startPoint` (a commit hash, so no upstream gets set) and switches to
+      // it. No error dialog: NewBranchForm shows a rejected name under its field.
       createBranch: (name: string, startPoint: string) =>
-        mutate(['checkout', '-b', name, startPoint])
+        mutate(['checkout', '-b', name, startPoint], { showErrorDialog: false })
     }
   }, [run, refetchGit, withAnimation])
 }

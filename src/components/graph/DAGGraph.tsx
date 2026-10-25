@@ -115,16 +115,18 @@ export function DAGGraph() {
   const skipFocusPreview = useRef(false)
 
   // A pinned card closes on any click outside it (other than on a clickable row or LittleMan's
-  // button, which pin their own card), or on Escape, which hands focus back to its row
+  // button, which pin their own card), or on Escape, which hands focus back to its row. The error
+  // dialog is modal, so clicks and Escape inside it leave the card alone.
   useEffect(() => {
     if (!pinnedHash) return
     const onPointerDown = (event: PointerEvent) => {
-      if (!(event.target as Element | null)?.closest('[data-card], [data-pin-target]')) {
+      if (!(event.target as Element | null)?.closest('[data-card], [data-pin-target], dialog')) {
         setPinnedHash(null)
       }
     }
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
+      if (event.target instanceof Element && event.target.closest('dialog')) return
       // Closed even if the pointer is still over the row; it reopens when the pointer comes back
       setPinnedHash(null)
       setHoveredHash(null)
@@ -223,7 +225,7 @@ export function DAGGraph() {
     setPinnedHash(hash)
   }
 
-  // The card closes once the checkout succeeds; on failure it stays (the status bar has the error)
+  // The card closes once the checkout succeeds; on failure it stays, behind the error dialog
   const checkout = async (node: LayoutNode, target: CheckoutTarget) => {
     setCheckingOut(node.hash)
     const result = await actions.checkout(target)

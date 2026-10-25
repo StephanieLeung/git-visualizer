@@ -1,8 +1,9 @@
 @import 'tailwindcss';
 
 /*
- * GitHub Desktop's palette (Primer v1). Light values here, dark overrides below, which apply
- * while the OS is in dark mode (prefers-color-scheme).
+ * GitHub Desktop's palette (Primer v1). Light values here, dark overrides below. Electron's
+ * nativeTheme.themeSource (see electron/settings.ts) decides which one prefers-color-scheme picks,
+ * so the Light / Dark / System setting needs no classes here.
  *
  * `static` emits every variable even if no utility uses it: the graph reads its lane colours as
  * var(--color-graph-N) names built at runtime (services/dagLayout.ts), which Tailwind can't see.
@@ -67,11 +68,17 @@
   --color-scrollbar: rgba(0, 0, 0, 0.2);
   --color-scrollbar-hover: rgba(0, 0, 0, 0.4);
 
-  /* --shadow-overlay is a plain variable in the base layer below, not a token here: Tailwind
-     copies a @theme shadow's light value into its utility class, so the dark override would never
-     reach it. */
+  /* Shadows (--shadow-overlay, --shadow-dialog) are plain variables in the base layer below, not
+     tokens here: Tailwind copies a @theme shadow's light value into its utility class, so the dark
+     override would never reach it. */
+
+  /* Dims the app behind the error dialog (GitHub Desktop's overlay) */
+  --color-backdrop: rgba(0, 0, 0, 0.4);
 
   --animate-popover-in: popover-in 140ms cubic-bezier(0.16, 1, 0.3, 1);
+  /* The error dialog grows in from 95% while its backdrop fades in */
+  --animate-fade-in: fade-in 200ms cubic-bezier(0.33, 1, 0.68, 1);
+  --animate-dialog-in: dialog-in 200ms cubic-bezier(0.33, 1, 0.68, 1);
 
   @keyframes popover-in {
     from {
@@ -81,6 +88,17 @@
     to {
       opacity: 1;
       transform: none;
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes dialog-in {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
     }
   }
 }
@@ -128,19 +146,26 @@
     --color-scrollbar-hover: rgba(255, 255, 255, 0.4);
 
     --shadow-overlay: 0 8px 24px rgba(1, 4, 9, 0.6);
+    /* GitHub Desktop's tight dialog shadow */
+    --shadow-dialog: 0 2px 7px rgba(0, 0, 0, 0.5);
+    --color-backdrop: rgba(0, 0, 0, 0.5);
   }
 }
 
-/* Read at runtime, so the dark value above applies (see the note in @theme) */
+/* Read at runtime, so the dark values above apply (see the note in @theme) */
 @utility shadow-overlay {
   box-shadow: var(--shadow-overlay);
+}
+@utility shadow-dialog {
+  box-shadow: var(--shadow-dialog);
 }
 
 @layer base {
   :root {
     color-scheme: light dark;
-    /* Light value; layered, so the unlayered dark override above wins */
+    /* Light values; layered, so the unlayered dark overrides above win */
     --shadow-overlay: 0 8px 24px rgba(149, 157, 165, 0.2);
+    --shadow-dialog: 0 8px 24px rgba(149, 157, 165, 0.2);
   }
 
   html,
