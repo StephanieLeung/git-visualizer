@@ -1,26 +1,21 @@
-import React, { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useState, type ReactNode } from 'react'
 
-type PathContextType = {
+interface PathContextType {
+  // Absolute path of the open repository; '' until one is chosen
   path: string
   setPath: (path: string) => void
 }
 
 const PathContext = createContext<PathContextType | undefined>(undefined)
 
-export const PathProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [path, setPath] = useState<string>('')
+export function PathProvider({ children }: { children: ReactNode }) {
+  const [path, setPath] = useState('')
 
-  return (
-    <PathContext.Provider value={{ path, setPath }}>
-      {children}
-    </PathContext.Provider>
-  )
+  return <PathContext.Provider value={{ path, setPath }}>{children}</PathContext.Provider>
 }
 
-export const usePath = () => {
+export function usePath() {
   const context = useContext(PathContext)
-  if (!context) {
-    throw new Error('usePath must be used within a PathProvider')
-  }
+  if (!context) throw new Error('usePath must be used within a PathProvider')
   return context
 }

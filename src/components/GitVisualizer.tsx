@@ -1,48 +1,33 @@
-import { useState, useEffect } from 'react';
-import { GitTree } from './GitTree';
-import { MenuBar } from './MenuBar';
-import { TerminalPanel } from './TerminalPanel';
-import { useGit } from '../context/GitContext';
+import { useState } from 'react'
+import { DAGGraph } from './graph/DAGGraph'
+import { Landing } from './Landing'
+import { LogView } from './LogView'
+import { MenuBar, type Tab } from './MenuBar'
+import { TerminalPanel } from './TerminalPanel'
 
-declare global {
-  interface Window {
-    API: typeof import('../../electron/preload').api;
-  }
-}
-
-
+// Main screen once a repo is open: tab bar, the active tab, and the command panel
 export function GitVisualizer() {
-  const [activeTab, setActiveTab] = useState<'landing' | 'log' | 'tree'>('tree');
-  const { refetchGit } = useGit();
-
-  useEffect(() => {
-    // Fetch on mount
-    refetchGit();
-
-    // Poll the git:hasChanges endpoint every 5 seconds
-    const intervalId = setInterval(() => {
-      window.API.git.hasChanges()
-        .then(response => {
-          console.log('git:hasChanges response:', response);
-        })
-        .catch(error => {
-          console.error('Error calling git:hasChanges:', error);
-        });
-    }, 5000); // 5 seconds
-
-    // Cleanup interval on component unmount
-    return () => clearInterval(intervalId);
-  }, [refetchGit]);
+  const [activeTab, setActiveTab] = useState<Tab>('tree')
 
   return (
-    <div className='flex flex-col h-full justify-between'>
+    <div className="flex flex-col h-full justify-between">
       <MenuBar activeTab={activeTab} setActiveTab={setActiveTab} />
 
       <div className="flex-1 overflow-hidden flex">
-        <GitTree activeTab={activeTab} />
+        {activeTab === 'landing' && (
+          <div className="w-full flex justify-center items-center">
+            <Landing />
+          </div>
+        )}
+        {activeTab === 'tree' && (
+          <div className="flex-1 h-full w-full overflow-hidden">
+            <DAGGraph />
+          </div>
+        )}
+        {activeTab === 'log' && <LogView />}
       </div>
 
       <TerminalPanel />
     </div>
-  );
+  )
 }

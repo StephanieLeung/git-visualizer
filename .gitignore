@@ -1,7 +1,13 @@
+# Dependencies
 node_modules
+
+# Build output (vite → dist, vite-plugin-electron → dist-electron, electron-builder → release)
 dist
-packages
-.webpack
-out
-package-lock
-yarn
+dist-electron
+release
+
+# Local / editor files
+*.local
+*.log
+.DS_Store
+.idea/
