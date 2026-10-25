@@ -1,25 +1,20 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import App from './App.tsx'
+import App from './App'
+import { TitleBar } from './components/TitleBar'
+import { PathProvider } from './context/PathContext'
+import { TerminalProvider } from './context/TerminalContext'
 import './index.css'
-import { TitleBar } from './components/TitleBar.tsx'
-import { PathProvider } from './context/PathContext.tsx'
-import { TerminalProvider } from './context/TerminalContext.tsx'
 
-ReactDOM.createRoot(document.getElementById('titlebar')!).render(
-  <TitleBar />
-)
+// The title bar is its own React root so it can stay fixed above the app (see index.css)
+ReactDOM.createRoot(document.getElementById('titlebar')!).render(<TitleBar />)
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <TerminalProvider>
-    <PathProvider>
-      <App />
-    </PathProvider>
+      <PathProvider>
+        <App />
+      </PathProvider>
     </TerminalProvider>
-  </React.StrictMode>,
+  </React.StrictMode>
 )
-
-// Use contextBridge
-window.ipcRenderer.on('main-process-message', (_event, message) => {
-  console.log(message)
-})

@@ -1,38 +1,28 @@
-import React, { useState } from "react";
-import { usePath } from "../context/PathContext";
+import { useState } from 'react'
+import { usePath } from '../context/PathContext'
 
+// Repo picker: shown before a repo is open, and in the "Landing" tab to switch repos
+export function Landing() {
+  const [busy, setBusy] = useState(false)
+  const [selectedPath, setSelectedPath] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const { setPath } = usePath()
 
-export default function Landing() {
-  const [busy, setBusy] = useState(false);
-  const [selectedPath, setSelectedPath] = useState<string>("");
-  const [error, setError] = useState<string | null>(null);
-  const { setPath } = usePath();
-
-  // Open native folder chooser (main process) and set repo path
   async function chooseRepository() {
-    setBusy(true);
-    setError(null);
+    setBusy(true)
+    setError(null)
 
     try {
-      // Ask main to open dialog and return chosen path (or null if cancelled)
-      const path = await window.API.path.select();
+      const path = await window.API.path.select()
+      if (!path) return // dialog cancelled
 
-      if (path) {
-        setSelectedPath(path);
-
-        // Persist the path in the main process repoPath too
-        await window.API.path.set(path);
-
-        // Update App state so it switches to GitVisualizer
-        setPath(path);
-      } else {
-        // user cancelled
-        setError(null);
-      }
-    } catch (e: any) {
-      setError(e?.message || String(e));
+      setSelectedPath(path)
+      await window.API.path.set(path)
+      setPath(path) // App switches over to the visualizer
+    } catch (e) {
+      setError((e instanceof Error && e.message) || String(e))
     } finally {
-      setBusy(false);
+      setBusy(false)
     }
   }
 
@@ -49,21 +39,17 @@ export default function Landing() {
           disabled={busy}
           className="px-4 py-2 rounded bg-slate-800 text-white disabled:opacity-60"
         >
-          {busy ? "Opening..." : "Open Repository…"}
+          {busy ? 'Opening...' : 'Open Repository…'}
         </button>
       </div>
 
-      {selectedPath && (
-        <p className="mt-4 text-xs break-all">Selected: {selectedPath}</p>
-      )}
+      {selectedPath && <p className="mt-4 text-xs break-all">Selected: {selectedPath}</p>}
 
-      {error && (
-        <p className="mt-4 text-sm text-red-500">Error: {error}</p>
-      )}
+      {error && <p className="mt-4 text-sm text-red-500">Error: {error}</p>}
 
       <p className="mt-6 text-xs text-gray-400">
         Tip: select the top-level folder that contains the `.git` directory.
       </p>
     </div>
-  );
+  )
 }

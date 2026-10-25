@@ -1,61 +1,29 @@
-import { ipcRenderer, contextBridge } from 'electron'
+import { contextBridge, ipcRenderer } from 'electron'
+import type { GitSnapshot } from './git'
 
-// --------- Expose some API to the Renderer process ---------
-contextBridge.exposeInMainWorld('ipcRenderer', {
-  on(...args: Parameters<typeof ipcRenderer.on>) {
-    const [channel, listener] = args
-    return ipcRenderer.on(channel, (event, ...args) => listener(event, ...args))
-  },
-  off(...args: Parameters<typeof ipcRenderer.off>) {
-    const [channel, ...omit] = args
-    return ipcRenderer.off(channel, ...omit)
-  },
-  send(...args: Parameters<typeof ipcRenderer.send>) {
-    const [channel, ...omit] = args
-    return ipcRenderer.send(channel, ...omit)
-  },
-  invoke(...args: Parameters<typeof ipcRenderer.invoke>) {
-    const [channel, ...omit] = args
-    return ipcRenderer.invoke(channel, ...omit)
-  },
-
-  // You can expose other APTs you need here.
-  // ...
-})
-
-
-export const api = {
-  /**
-   * Here you can expose functions to the renderer process
-   * so they can interact with the main (electron) side
-   * without security problems.
-   */
-
-  sendMessage: (message: string) => {
-    ipcRenderer.send('message', message)
-  },
-
-  on: (channel: string, callback: any) => {
-    ipcRenderer.on(channel, (_, data) => callback(data))
-  },
-
+// Typed bridge exposed to the renderer as `window.API`; each method maps 1:1 to a channel in ipc.ts
+const api = {
   git: {
-    run: (command: string) => ipcRenderer.invoke('git:run', command),
-    getHistory: () => ipcRenderer.invoke("git:getHistory"),
-    hasChanges: () => ipcRenderer.invoke("git:hasChanges")
+    // Runs `git <command>` in the repo; always resolves with stdout, even when git fails
+    run: (command: string): Promise<string> => ipcRenderer.invoke('git:run', command),
+    // Raw `git log --all` output for the DAG (parsed by src/services/gitHistory.ts)
+    getHistory: (): Promise<string> => ipcRenderer.invoke('git:getHistory'),
+    // `git status` text plus the last 5 commits
+    startup: (): Promise<GitSnapshot> => ipcRenderer.invoke('git:startup'),
+    hasChanges: (): Promise<boolean> => ipcRenderer.invoke('git:hasChanges')
   },
-
   path: {
-    // Sets the path in main process (existing)
-    set: (path: string) => ipcRenderer.invoke('path:set', path),
-    // opens a native folder chooser in main and returns selected path (or null)
-    select: () => ipcRenderer.invoke('path:select')
+    // Sets the repository every git command runs in
+    set: (path: string): Promise<string> => ipcRenderer.invoke('path:set', path),
+    // Opens a native folder picker; resolves to the chosen path, or null if cancelled
+    select: (): Promise<string | null> => ipcRenderer.invoke('path:select')
+  },
+  window: {
+    minimize: (): Promise<void> => ipcRenderer.invoke('window:minimize'),
+    close: (): Promise<void> => ipcRenderer.invoke('window:close')
   }
 }
 
-contextBridge.exposeInMainWorld('API', api)
+export type Api = typeof api
 
-contextBridge.exposeInMainWorld('windowControls', {
-  minimize: () => ipcRenderer.invoke('window:minimize'),
-  close: () => ipcRenderer.invoke('window:close'),
-});
+contextBridge.exposeInMainWorld('API', api)

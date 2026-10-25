@@ -1,21 +1,21 @@
 import { GitVisualizer } from './components/GitVisualizer'
-import Landing from './components/Landing'
+import { Landing } from './components/Landing'
 import { GitProvider } from './context/GitContext'
-import './App.css'
 import { usePath } from './context/PathContext'
 
+// Repo picker until a repository is chosen, then the visualizer
 export default function App() {
-  const { path } = usePath();
+  const { path } = usePath()
 
   return (
     <div className="h-full m-0 p-0">
-        {path.trim() === '' ? (
-          <Landing />
-        ) : (
+      {path.trim() === '' ? (
+        <Landing />
+      ) : (
         <GitProvider>
           <GitVisualizer />
         </GitProvider>
-        )}
+      )}
     </div>
   )
 }

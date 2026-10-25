@@ -1,8 +1,9 @@
-import { Terminal } from 'lucide-react';
-import { useTerminal } from '../context/TerminalContext';
+import { Terminal } from 'lucide-react'
+import { useTerminal } from '../context/TerminalContext'
 
+// Read-only "terminal" that echoes the last git command the UI ran
 export function TerminalPanel() {
-  const { command, setCommand } = useTerminal();
+  const { command } = useTerminal()
 
   return (
     <div className="bg-gradient-to-r from-purple-100 via-pink-100 to-blue-100 border-t-2 border-purple-200 p-3">
@@ -13,11 +14,10 @@ export function TerminalPanel() {
           disabled
           type="text"
           value={command}
-          onChange={(e) => setCommand(e.target.value)}
           placeholder="git pull"
           className="flex-1 bg-transparent outline-none text-sm font-mono text-purple-700 placeholder:text-purple-300"
         />
       </div>
     </div>
-  );
+  )
 }

@@ -1,26 +1,23 @@
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, type ReactNode } from 'react'
 
-type TerminalContextType = {
-  command: string;
-  setCommand: (command: string) => void;
-};
+interface TerminalContextType {
+  // Last git command the UI ran, echoed in the TerminalPanel
+  command: string
+  setCommand: (command: string) => void
+}
 
-const TerminalContext = createContext<TerminalContextType | undefined>(undefined);
+const TerminalContext = createContext<TerminalContextType | undefined>(undefined)
 
-export const TerminalProvider = ({ children }: { children: ReactNode }) => {
-  const [command, setCommand] = useState<string>("");
+export function TerminalProvider({ children }: { children: ReactNode }) {
+  const [command, setCommand] = useState('')
 
   return (
-    <TerminalContext.Provider value={{ command, setCommand }}>
-      {children}
-    </TerminalContext.Provider>
-  );
-};
+    <TerminalContext.Provider value={{ command, setCommand }}>{children}</TerminalContext.Provider>
+  )
+}
 
-export const useTerminal = () => {
-  const context = useContext(TerminalContext);
-  if (!context) {
-    throw new Error("useTerminal must be used within a TerminalProvider");
-  }
-  return context;
-};
+export function useTerminal() {
+  const context = useContext(TerminalContext)
+  if (!context) throw new Error('useTerminal must be used within a TerminalProvider')
+  return context
+}
