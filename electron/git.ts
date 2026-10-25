@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process'
+import path from 'node:path'
 
 // Large enough for `git log` over big histories (execFile's default is 1 MB)
 const MAX_BUFFER = 64 * 1024 * 1024
@@ -47,11 +48,20 @@ export interface GitSnapshot {
   refsKey: string
 }
 
-// Runs git with an explicit argument list (no shell). Never rejects; callers check `error`.
-export function git(args: string[]): Promise<GitResult> {
+// Runs git with an explicit argument list (no shell), in the selected repo unless `cwd` is given.
+// Never rejects; callers check `error`.
+export function git(args: string[], cwd = repoPath): Promise<GitResult> {
   return new Promise((resolve) => {
-    execFile('git', args, { cwd: repoPath, maxBuffer: MAX_BUFFER }, (error, stdout, stderr) => {
+    execFile('git', args, { cwd, maxBuffer: MAX_BUFFER }, (error, stdout, stderr) => {
       resolve({ error, stdout, stderr })
     })
   })
+}
+
+// Top-level folder of the repository containing `dir`, or null if `dir` isn't inside a work tree
+// (or doesn't exist)
+export async function repoRoot(dir: string): Promise<string | null> {
+  const { error, stdout } = await git(['rev-parse', '--show-toplevel'], dir)
+  // git prints forward slashes on Windows; normalize to the platform's separators
+  return error || !stdout.trim() ? null : path.normalize(stdout.trim())
 }

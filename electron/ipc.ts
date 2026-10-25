@@ -1,12 +1,15 @@
-import { BrowserWindow, dialog, ipcMain } from 'electron'
+import { BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { pathToFileURL } from 'node:url'
 import {
   getRepoPath,
   git,
+  repoRoot,
   requireRepo,
   setRepoPath,
   type GitRunResult,
   type GitSnapshot
 } from './git'
+import { addRecentRepo, listRecentRepos, removeRecentRepo } from './recentRepos'
 
 // One commit per line; \x1f can't appear in hashes, ref names or subjects
 const HISTORY_FORMAT = ['%H', '%P', '%D', '%s'].join('%x1f')
@@ -76,15 +79,52 @@ export function registerIpcHandlers(): void {
     }
   })
 
-  ipcMain.handle('path:set', (_event, path: string) => {
-    setRepoPath(path)
-    return path
+  // Opens the repository containing `dir` and records it in the recent list. Resolves to the
+  // repository's top-level folder, or null if `dir` isn't inside one.
+  ipcMain.handle('path:set', async (_event, dir: string) => {
+    const root = await repoRoot(dir)
+    if (!root) return null
+    setRepoPath(root)
+    addRecentRepo(root)
+    return root
   })
 
   // Native folder picker; resolves to the chosen directory, or null if cancelled
   ipcMain.handle('path:select', async () => {
     const result = await dialog.showOpenDialog({ properties: ['openDirectory'] })
     return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0]
+  })
+
+  ipcMain.handle('path:recent', () => listRecentRepos())
+
+  // Drops a repository from the recent list (the folder itself is untouched)
+  ipcMain.handle('path:forget', (_event, repo: string) => {
+    removeRecentRepo(repo)
+    return listRecentRepos()
+  })
+
+  // Opens the current repository through VS Code's URL handler, so `code` needn't be on PATH
+  ipcMain.handle('open:vscode', async () => {
+    requireRepo()
+    // pathToFileURL percent-encodes spaces, # and %; the trailing slash opens it as a folder.
+    // windowId=_blank forces a new window; otherwise VS Code replaces the last active window's
+    // folder (often the one this app was launched from)
+    const url = `vscode://file${pathToFileURL(getRepoPath()).pathname}/?windowId=_blank`
+    try {
+      await shell.openExternal(url)
+    } catch (err) {
+      dialog.showErrorBox(
+        "Couldn't open VS Code",
+        `Make sure Visual Studio Code is installed.\n\n${err instanceof Error ? err.message : String(err)}`
+      )
+    }
+  })
+
+  // Opens the current repository's folder in Explorer / Finder / the file manager
+  ipcMain.handle('open:folder', async () => {
+    requireRepo()
+    const error = await shell.openPath(getRepoPath())
+    if (error) dialog.showErrorBox("Couldn't open the folder", error)
   })
 
   ipcMain.handle('window:minimize', (event) => {

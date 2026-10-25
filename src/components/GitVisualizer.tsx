@@ -14,9 +14,9 @@ export function GitVisualizer() {
       <MenuBar activeTab={activeTab} setActiveTab={setActiveTab} />
 
       <div className="flex-1 overflow-hidden flex">
-        {activeTab === 'landing' && (
+        {activeTab === 'repos' && (
           <div className="w-full flex justify-center items-center">
-            <Landing />
+            <Landing onOpen={() => setActiveTab('tree')} />
           </div>
         )}
         {activeTab === 'tree' && (
