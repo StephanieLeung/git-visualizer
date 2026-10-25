@@ -1,0 +1,6 @@
+dist
+dist-electron
+release
+package-lock.json
+electron-builder.json5
+.*/

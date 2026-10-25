@@ -7,12 +7,12 @@
     "dev": "vite",
     "build": "tsc && vite build && electron-builder",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "typecheck": "tsc",
+    "format": "prettier --write .",
     "preview": "vite preview"
   },
   "dependencies": {
-    "@gitgraph/react": "^1.6.0",
     "@radix-ui/react-accordion": "^1.2.12",
-    "@radix-ui/react-context-menu": "^2.2.6",
     "@radix-ui/react-popover": "^1.1.15",
     "@tailwindcss/vite": "^4.1.18",
     "clsx": "^2.1.1",
@@ -33,6 +33,7 @@
     "eslint": "^8.57.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.5",
+    "prettier": "^3.9.10",
     "typescript": "^5.2.2",
     "vite": "^5.1.6",
     "vite-plugin-electron": "^0.28.6",
