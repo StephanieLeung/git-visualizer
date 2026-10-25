@@ -100,7 +100,7 @@ function GraphSkeleton() {
 
 // The commit graph: SVG lanes and nodes over HTML rows, with LittleMan standing next to HEAD.
 // Branch tips and HEAD are interactive: hover for a card, click the row to pin it open. A tip's
-// card switches to the branch; HEAD's card holds the git actions.
+// card switches to the branch (as does double-clicking its row); HEAD's card holds the git actions.
 export function DAGGraph() {
   const layout = useCommitGraph()
   const actions = useGitActions()
@@ -225,8 +225,11 @@ export function DAGGraph() {
     setPinnedHash(hash)
   }
 
-  // The card closes once the checkout succeeds; on failure it stays, behind the error dialog
-  const checkout = async (node: LayoutNode, target: CheckoutTarget) => {
+  // A tip card's Switch button, or a double-click on its row. The card closes once the checkout
+  // succeeds; on failure it stays, behind the error dialog.
+  const switchTo = async (node: LayoutNode) => {
+    const target = targets.get(node.hash)
+    if (!target || checkingOut) return
     setCheckingOut(node.hash)
     const result = await actions.checkout(target)
     setCheckingOut(null)
@@ -261,16 +264,13 @@ export function DAGGraph() {
     }
 
     if (node.isHead) return <CommitCard {...shared} kind="head" branch={currentBranch} />
-    const target = targets.get(node.hash)
     return (
       <CommitCard
         {...shared}
         kind="tip"
-        action={`Switch to ${target?.label}`}
+        action={`Switch to ${targets.get(node.hash)?.label}`}
         busy={checkingOut === node.hash}
-        onSwitch={() => {
-          if (target && checkingOut !== node.hash) checkout(node, target)
-        }}
+        onSwitch={() => switchTo(node)}
       />
     )
   }
@@ -308,6 +308,8 @@ export function DAGGraph() {
               }
               onBlur={interactive ? (event) => leaveRow(node.hash, event.relatedTarget) : undefined}
               onClick={interactive ? () => pin(node.hash) : undefined}
+              // The first click of the two has already pinned the card, which shows the progress
+              onDoubleClick={interactive && !node.isHead ? () => switchTo(node) : undefined}
               onKeyDown={interactive ? (event) => onRowKeyDown(event, node) : undefined}
               // Clickable rows are tinted at rest (HEAD blue, tips in their lane's colour) and
               // deepen on hover and while their card is open; plain commits get neither
