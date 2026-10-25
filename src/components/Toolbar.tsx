@@ -13,6 +13,7 @@ import { Button } from './ui/button'
 import { ErrorFlash } from './ui/flash'
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
 import { Spinner } from './ui/spinner'
+import { cn } from './ui/utils'
 
 // What the system file manager is called, for the "Show in …" button
 const FILE_MANAGER: Partial<Record<string, string>> = { win32: 'Explorer', darwin: 'Finder' }
@@ -110,6 +111,16 @@ export function Toolbar({ onRepositoryOpen }: ToolbarProps) {
           />
         </PopoverContent>
       </Popover>
+      {/* Dims everything below the toolbar (top: the 32px title bar plus this 50px toolbar) while
+          the dropdown is open, as GitHub Desktop does; a click on it is an outside click, which
+          closes the dropdown */}
+      <div
+        aria-hidden
+        className={cn(
+          'fixed inset-x-0 top-[82px] bottom-0 z-40 bg-backdrop transition-opacity duration-[120ms] motion-reduce:transition-none',
+          foldoutOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
+        )}
+      />
 
       <div className="ml-auto flex">
         <ToolbarButton

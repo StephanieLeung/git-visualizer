@@ -72,7 +72,7 @@
      tokens here: Tailwind copies a @theme shadow's light value into its utility class, so the dark
      override would never reach it. */
 
-  /* Dims the app behind the error dialog (GitHub Desktop's overlay) */
+  /* Dims the app behind the error dialog and the repository dropdown (GitHub Desktop's overlay) */
   --color-backdrop: rgba(0, 0, 0, 0.4);
 
   /* Cards and menus ease in a little slower than they leave; the dialog grows in from 95% */
