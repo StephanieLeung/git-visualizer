@@ -42,6 +42,35 @@ export function registerIpcHandlers(): void {
     return log.stdout
   })
 
+  // Local branches with no commits of their own yet: still on the commit they were created at.
+  // That means a reflog holding only its "branch: Created from …" entry and no upstream (a branch
+  // checked out from a remote one starts with the remote's commits)
+  ipcMain.handle('git:newBranches', async (): Promise<string[]> => {
+    requireRepo()
+    const heads = await git([
+      'for-each-ref',
+      '--format=%(refname:short)%00%(upstream)',
+      'refs/heads'
+    ])
+    if (heads.error) return []
+
+    const candidates = heads.stdout
+      .split('\n')
+      .map((line) => line.split('\0'))
+      .filter(([name, upstream]) => name && !upstream)
+      .map(([name]) => name)
+
+    const fresh = await Promise.all(
+      candidates.map(async (name) => {
+        const reflog = await git(['reflog', 'show', '--format=%gs', `refs/heads/${name}`])
+        const entries = reflog.stdout.split('\n').filter(Boolean)
+        const created = entries.length === 1 && entries[0].startsWith('branch: Created from')
+        return !reflog.error && created ? name : null
+      })
+    )
+    return fresh.filter((name): name is string => name !== null)
+  })
+
   // Runs `git <args>` for a user action and reports whether it succeeded
   ipcMain.handle('git:run', async (_event, args: unknown): Promise<GitRunResult> => {
     if (!Array.isArray(args) || !args.every((arg) => typeof arg === 'string')) {

@@ -334,8 +334,19 @@ export function DAGGraph() {
                   />
                   <span className="truncate text-[13px] text-fg">{node.message}</span>
                 </div>
-                <div className="mt-0.5 font-mono text-[11px] text-fg-muted">
-                  {node.hash.slice(0, 7)}
+                <div className="mt-0.5 flex min-w-0 items-baseline gap-1.5 text-[11px] text-fg-muted">
+                  <span className="shrink-0 font-mono">{node.hash.slice(0, 7)}</span>
+                  {/* A just-created branch sits on this commit until its first commit of its own */}
+                  {node.refs.some((r) => r.isNew) && (
+                    <span className="truncate">
+                      · no commits on{' '}
+                      {node.refs
+                        .filter((r) => r.isNew)
+                        .map((r) => r.name)
+                        .join(', ')}{' '}
+                      yet
+                    </span>
+                  )}
                 </div>
               </div>
             </div>

@@ -42,8 +42,8 @@ function meaningfulLines(text: string): string[] {
 }
 
 // On failure the fatal/error line. On success git's first line of output, or the last
-// progress line when it only wrote to stderr (push, checkout).
-function summarize({ ok, stdout, stderr }: GitRunResult): string {
+// progress line when it only wrote to stderr (push, checkout). Also used for inline errors.
+export function summarize({ ok, stdout, stderr }: GitRunResult): string {
   if (!ok) {
     const lines = meaningfulLines(`${stderr}\n${stdout}`)
     return lines.find((line) => /^(fatal|error):/.test(line)) ?? lines[0] ?? 'Command failed'

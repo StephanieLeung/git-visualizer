@@ -8,6 +8,8 @@ export interface GitRef {
   branch?: string
   // The branch HEAD is currently on
   isCurrent?: boolean
+  // Local branch with no commits of its own yet (see git:newBranches in electron/ipc.ts)
+  isNew?: boolean
 }
 
 // One commit from the git:history channel (see electron/ipc.ts)
@@ -28,10 +30,19 @@ export interface CheckoutTarget {
 
 const FIELD_SEPARATOR = '\x1f'
 
-// Loads the commit graph; resolves to [] (and logs) on failure
+// Loads the commit graph, marking just-created branches; resolves to [] (and logs) on failure
 export async function fetchCommits(): Promise<Commit[]> {
   try {
-    return parseCommits(await window.API.git.history())
+    const [output, newBranches] = await Promise.all([
+      window.API.git.history(),
+      window.API.git.newBranches()
+    ])
+    const isNew = new Set(newBranches)
+    const commits = parseCommits(output)
+    for (const ref of commits.flatMap((c) => c.refs)) {
+      if (ref.kind === 'local' && isNew.has(ref.name)) ref.isNew = true
+    }
+    return commits
   } catch (err) {
     console.error('Error fetching commits:', err)
     return []

@@ -32,7 +32,10 @@ export function useGitActions() {
       // -u includes untracked files, matching what counts as "changes"
       stash: () => mutate(['stash', '-u']),
       unstash: () => mutate(['stash', 'pop']),
-      checkout: (target: CheckoutTarget) => mutate(target.args)
+      checkout: (target: CheckoutTarget) => mutate(target.args),
+      // Creates the branch at `startPoint` (a commit hash, so no upstream gets set) and switches to it
+      createBranch: (name: string, startPoint: string) =>
+        mutate(['checkout', '-b', name, startPoint])
     }
   }, [run, refetchGit, withAnimation])
 }

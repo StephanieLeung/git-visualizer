@@ -5,12 +5,13 @@ import { Button } from '../ui/button'
 import { Spinner } from '../ui/spinner'
 import { cn } from '../ui/utils'
 import { GitActionsPanel } from './GitActionsPanel'
+import { NewBranchForm } from './NewBranchForm'
 import { RefLabels } from './RefLabel'
 
 export const CARD_WIDTH = 320
-// Tallest each kind of card gets; the graph leaves room for them under its last rows
-export const TIP_CARD_HEIGHT = 150
-export const HEAD_CARD_HEIGHT = 400
+// Tallest each kind of card gets (New branch form open); the graph leaves room under its last rows
+export const TIP_CARD_HEIGHT = 260
+export const HEAD_CARD_HEIGHT = 500
 
 interface CommitCardProps {
   // Top-left corner, in the graph canvas's pixels
@@ -57,6 +58,8 @@ export function CommitCard({
   branch
 }: CommitCardProps) {
   const isHead = kind === 'head'
+  // Local branches here that have no commits of their own yet (see services/gitHistory.ts)
+  const newBranches = refs.filter((ref) => ref.isNew).map((ref) => ref.name)
 
   return (
     <div
@@ -83,25 +86,39 @@ export function CommitCard({
         </div>
 
         <RefLabels refs={refs} detached={detached} className="mt-2 flex-wrap" />
+        {newBranches.length > 0 && (
+          <p className="mt-2 text-[11px] text-fg-muted">
+            No commits on {newBranches.join(', ')} yet
+            {isHead && newBranches.includes(branch ?? '')
+              ? '. Your next commit gives it its own row.'
+              : '. It starts at this commit.'}
+          </p>
+        )}
         <p className="mt-2 line-clamp-2 text-xs text-fg [overflow-wrap:anywhere]">{message}</p>
 
         {!isHead && (
-          <Button
-            variant="primary"
-            size="sm"
-            className="mt-3 w-full min-w-0"
-            disabled={busy}
-            onClick={onSwitch}
-          >
-            {busy ? <Spinner className="size-3" /> : <GitBranchIcon size={16} />}
-            <span className="truncate">{busy ? 'Checking out…' : action}</span>
-          </Button>
+          <div className="mt-3 space-y-2">
+            <Button
+              variant="primary"
+              size="sm"
+              className="w-full min-w-0"
+              disabled={busy}
+              onClick={onSwitch}
+            >
+              {busy ? <Spinner className="size-3" /> : <GitBranchIcon size={16} />}
+              <span className="truncate">{busy ? 'Checking out…' : action}</span>
+            </Button>
+            <NewBranchForm startPoint={hash} onCreated={onDone} inputId="tip-card-new-branch" />
+          </div>
         )}
       </div>
 
       {isHead && (
         <div className="border-t border-border">
           <GitActionsPanel branch={branch} onDone={onDone} inputId="head-card-commit-summary" />
+          <div className="border-t border-border p-3">
+            <NewBranchForm startPoint={hash} onCreated={onDone} inputId="head-card-new-branch" />
+          </div>
         </div>
       )}
     </div>

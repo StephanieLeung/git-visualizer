@@ -10,6 +10,8 @@ const api = {
     run: (args: string[]): Promise<GitRunResult> => ipcRenderer.invoke('git:run', args),
     // Raw commit graph output (parsed by src/services/gitHistory.ts)
     history: (): Promise<string> => ipcRenderer.invoke('git:history'),
+    // Local branches with no commits of their own yet (just created, still at their start commit)
+    newBranches: (): Promise<string[]> => ipcRenderer.invoke('git:newBranches'),
     // Status, recent log, dirty/stash flags and a key that changes whenever refs move
     snapshot: (): Promise<GitSnapshot> => ipcRenderer.invoke('git:snapshot')
   },
