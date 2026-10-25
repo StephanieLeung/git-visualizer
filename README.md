@@ -4,7 +4,8 @@ A desktop git client that sits somewhere between GitHub Desktop and the branch g
 sidebar. Open a local repository to see its full commit graph, click a branch tip to check it out,
 and use the little character standing on `HEAD` to commit, push, pull, stash and unstash.
 Repositories you've opened are listed on the start screen so you can reopen them in one click, and
-the open repository can be launched in VS Code or shown in your file manager. Built at nwHacks 2026
+the open repository can be launched in VS Code or shown in your file manager. The interface follows
+GitHub Desktop's look, in a Light, Dark or System theme you pick from the title bar. Built at nwHacks 2026
 with Electron, React, TypeScript, Vite and Tailwind CSS.
 
 ## Prerequisites

@@ -1,4 +1,4 @@
-import { BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { BrowserWindow, dialog, ipcMain, nativeTheme, shell } from 'electron'
 import { pathToFileURL } from 'node:url'
 import {
   getRepoPath,
@@ -10,6 +10,7 @@ import {
   type GitSnapshot
 } from './git'
 import { addRecentRepo, listRecentRepos, removeRecentRepo } from './recentRepos'
+import { getThemePreference, isThemePreference, setThemePreference } from './settings'
 
 // One commit per line; \x1f can't appear in hashes, ref names or subjects
 const HISTORY_FORMAT = ['%H', '%P', '%D', '%s'].join('%x1f')
@@ -125,6 +126,16 @@ export function registerIpcHandlers(): void {
     requireRepo()
     const error = await shell.openPath(getRepoPath())
     if (error) dialog.showErrorBox("Couldn't open the folder", error)
+  })
+
+  ipcMain.handle('theme:get', () => getThemePreference())
+
+  // Applies and saves the theme. nativeTheme switches the renderer's prefers-color-scheme, which
+  // the CSS theme tokens follow.
+  ipcMain.handle('theme:set', (_event, theme: unknown) => {
+    if (!isThemePreference(theme)) throw new Error(`Unknown theme: ${String(theme)}`)
+    nativeTheme.themeSource = theme
+    setThemePreference(theme)
   })
 
   ipcMain.handle('window:minimize', (event) => {

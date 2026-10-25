@@ -1,5 +1,6 @@
 import { GitMergeIcon } from '@primer/octicons-react'
 import type { ReactNode } from 'react'
+import { ThemeMenu } from './ThemeMenu'
 
 interface CaptionButtonProps {
   label: string
@@ -34,6 +35,7 @@ export function TitleBar() {
       </div>
 
       <div className="ml-auto flex h-full [app-region:no-drag]">
+        <ThemeMenu />
         <CaptionButton label="Minimize" onClick={() => window.API.window.minimize()}>
           <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden>
             <path d="M0 5.5h10" stroke="currentColor" />

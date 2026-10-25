@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { GitRunResult, GitSnapshot } from './git'
 import type { RecentRepo } from './recentRepos'
+import type { ThemePreference } from './settings'
 
 // Typed bridge exposed to the renderer as `window.API`; each method maps 1:1 to a channel in ipc.ts
 const api = {
@@ -28,6 +29,12 @@ const api = {
     vscode: (): Promise<void> => ipcRenderer.invoke('open:vscode'),
     // Opens the current repository's folder in the system file manager
     folder: (): Promise<void> => ipcRenderer.invoke('open:folder')
+  },
+  theme: {
+    // Saved theme preference ('system' unless the user picked one)
+    get: (): Promise<ThemePreference> => ipcRenderer.invoke('theme:get'),
+    // Switches the app to this theme and saves it
+    set: (theme: ThemePreference): Promise<void> => ipcRenderer.invoke('theme:set', theme)
   },
   // 'win32', 'darwin', 'linux', ...
   platform: process.platform,
