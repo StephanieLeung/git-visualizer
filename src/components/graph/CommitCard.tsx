@@ -30,6 +30,9 @@ interface CommitCardProps {
   onPin: () => void
   // Closes the card once an action has started or finished
   onDone: () => void
+  // The card has closed and is fading out: drawn but inert; onClosed fires when the fade ends
+  closing?: boolean
+  onClosed?: () => void
   // Tip only: the switch button's label, whether that checkout is running, and running it
   action?: string
   busy?: boolean
@@ -52,6 +55,8 @@ export function CommitCard({
   onMouseLeave,
   onPin,
   onDone,
+  closing = false,
+  onClosed,
   action,
   busy = false,
   onSwitch,
@@ -63,15 +68,24 @@ export function CommitCard({
 
   return (
     <div
-      ref={containerRef}
-      data-card
-      onMouseLeave={onMouseLeave}
-      onPointerDown={onPin}
-      onFocus={onPin}
+      // A closing card is click-through and out of DAGGraph's row/card bookkeeping
+      ref={closing ? undefined : containerRef}
+      data-card={closing ? undefined : true}
+      aria-hidden={closing || undefined}
+      onMouseLeave={closing ? undefined : onMouseLeave}
+      onPointerDown={closing ? undefined : onPin}
+      onFocus={closing ? undefined : onPin}
+      onAnimationEnd={(event) => {
+        if (closing && event.target === event.currentTarget) onClosed?.()
+      }}
       style={{ left, top, width: CARD_WIDTH }}
       className={cn(
-        'absolute z-30 overflow-hidden rounded-md border bg-canvas-overlay text-left shadow-overlay animate-popover-in motion-reduce:animate-none',
-        busy ? 'border-attention-fg' : 'border-border'
+        'absolute z-30 overflow-hidden rounded-md border bg-canvas-overlay text-left shadow-overlay',
+        busy ? 'border-attention-fg' : 'border-border',
+        // Without motion there is no fade to wait for, so a closing card just hides
+        closing
+          ? 'pointer-events-none motion-safe:animate-popover-out motion-reduce:hidden'
+          : 'motion-safe:animate-popover-in'
       )}
     >
       <div className="p-3">

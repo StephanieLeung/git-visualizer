@@ -46,7 +46,7 @@ export function NewBranchForm({ startPoint, onCreated, inputId }: NewBranchFormP
   }
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} className="motion-safe:animate-fade-in">
       <label htmlFor={inputId} className="mb-1.5 block text-xs font-semibold text-fg">
         New branch
       </label>

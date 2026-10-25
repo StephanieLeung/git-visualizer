@@ -108,6 +108,11 @@ export function DAGGraph() {
   // Commit whose card was clicked open; it stays until you click elsewhere or press Escape
   const [pinnedHash, setPinnedHash] = useState<string | null>(null)
   const [checkingOut, setCheckingOut] = useState<string | null>(null)
+  // A pinned card wins; otherwise whichever clickable row (or its card) is under the pointer
+  const cardHash = pinnedHash ?? hoveredHash
+  // The card on screen: the shown one, or, once it closes, the same one while it fades out
+  const [lastCardHash, setLastCardHash] = useState<string | null>(null)
+  if (cardHash && cardHash !== lastCardHash) setLastCardHash(cardHash)
   const cardRef = useRef<HTMLDivElement>(null)
   // Set when a row is pinned from the keyboard, so focus moves into the card that opens
   const focusCardOnPin = useRef(false)
@@ -200,9 +205,6 @@ export function DAGGraph() {
   const spriteTop = head ? GRAPH_TOP + centerY(head) - LITTLEMAN_HEIGHT / 2 : 0
   const currentBranch = head?.refs.find((r) => r.isCurrent)?.name
 
-  // A pinned card wins; otherwise whichever clickable row (or its card) is under the pointer
-  const cardHash = pinnedHash ?? hoveredHash
-
   // Leaving a row hides its card at once, unless the pointer (or focus) is moving into the card
   const leaveRow = (hash: string, next: EventTarget | null) => {
     if (next instanceof Node && cardRef.current?.contains(next)) return
@@ -214,9 +216,11 @@ export function DAGGraph() {
       return
     setHoveredHash((current) => (current === hash ? null : current))
   }
+  // For actions: the card closes without fading, since LittleMan's walk or animation takes over
   const closeCard = () => {
     setPinnedHash(null)
     setHoveredHash(null)
+    setLastCardHash(null)
   }
 
   // Clicking a row (or Enter/Space on it) pins its card open; from the keyboard, focus moves in
@@ -247,8 +251,10 @@ export function DAGGraph() {
     pin(node.hash, true)
   }
 
-  const renderCard = () => {
-    const node = cardHash ? nodesByHash.get(cardHash) : undefined
+  // Keyed by commit, so each row's card fades in fresh (and no form state carries over), while a
+  // closing card keeps its instance, and so its contents, as it fades out
+  const renderCard = (hash: string, closing: boolean) => {
+    const node = nodesByHash.get(hash)
     if (!node || !isInteractive(node)) return null
     const shared = {
       left: textLeft - 8,
@@ -260,12 +266,17 @@ export function DAGGraph() {
       containerRef: cardRef,
       onMouseLeave: (event: ReactMouseEvent) => leaveCard(node.hash, event.relatedTarget),
       onPin: () => pin(node.hash),
-      onDone: closeCard
+      onDone: closeCard,
+      closing,
+      onClosed: () => setLastCardHash((current) => (current === hash ? null : current))
     }
 
-    if (node.isHead) return <CommitCard {...shared} kind="head" branch={currentBranch} />
+    if (node.isHead) {
+      return <CommitCard key={hash} {...shared} kind="head" branch={currentBranch} />
+    }
     return (
       <CommitCard
+        key={hash}
         {...shared}
         kind="tip"
         action={`Switch to ${targets.get(node.hash)?.label}`}
@@ -274,6 +285,7 @@ export function DAGGraph() {
       />
     )
   }
+  const visibleCardHash = cardHash ?? lastCardHash
 
   return (
     <div className="relative min-w-0 flex-1 overflow-auto bg-canvas">
@@ -315,7 +327,8 @@ export function DAGGraph() {
               // deepen on hover and while their card is open; plain commits get neither
               className={cn(
                 'absolute inset-x-0 flex items-center pr-4',
-                interactive && 'cursor-pointer',
+                interactive &&
+                  'cursor-pointer transition-colors duration-150 motion-reduce:transition-none',
                 node.isHead && cn(HEAD_ROW_CLASS, cardShown && HEAD_ROW_ACTIVE_CLASS),
                 !node.isHead && interactive && cn(TIP_ROW_CLASS, cardShown && TIP_ROW_ACTIVE_CLASS)
               )}
@@ -442,7 +455,7 @@ export function DAGGraph() {
         )}
 
         {/* Drawn last so it sits above every row */}
-        {renderCard()}
+        {visibleCardHash && renderCard(visibleCardHash, cardHash === null)}
       </div>
     </div>
   )

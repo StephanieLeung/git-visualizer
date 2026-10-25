@@ -75,8 +75,9 @@
   /* Dims the app behind the error dialog (GitHub Desktop's overlay) */
   --color-backdrop: rgba(0, 0, 0, 0.4);
 
-  --animate-popover-in: popover-in 140ms cubic-bezier(0.16, 1, 0.3, 1);
-  /* The error dialog grows in from 95% while its backdrop fades in */
+  /* Cards and menus ease in a little slower than they leave; the dialog grows in from 95% */
+  --animate-popover-in: popover-in 150ms cubic-bezier(0.33, 1, 0.68, 1);
+  --animate-popover-out: popover-out 100ms cubic-bezier(0.32, 0, 0.67, 0) forwards;
   --animate-fade-in: fade-in 200ms cubic-bezier(0.33, 1, 0.68, 1);
   --animate-dialog-in: dialog-in 200ms cubic-bezier(0.33, 1, 0.68, 1);
 
@@ -85,9 +86,11 @@
       opacity: 0;
       transform: translateY(-4px);
     }
+  }
+  @keyframes popover-out {
     to {
-      opacity: 1;
-      transform: none;
+      opacity: 0;
+      transform: translateY(-4px);
     }
   }
   @keyframes fade-in {

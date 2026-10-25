@@ -29,8 +29,9 @@ const PopoverContent = React.forwardRef<
         align={align}
         sideOffset={sideOffset}
         className={cn(
-          // z-200 keeps menus above the fixed title bar (#titlebar is z-index 100)
-          'z-[200] w-72 origin-(--radix-popover-content-transform-origin) rounded-md border border-border bg-canvas-overlay p-3 text-xs text-fg shadow-overlay outline-hidden animate-popover-in motion-reduce:animate-none',
+          // z-200 keeps menus above the fixed title bar (#titlebar is z-index 100). Radix waits
+          // for the closing animation before it unmounts the content.
+          'z-[200] w-72 origin-(--radix-popover-content-transform-origin) rounded-md border border-border bg-canvas-overlay p-3 text-xs text-fg shadow-overlay outline-hidden motion-safe:animate-popover-in motion-safe:data-[state=closed]:animate-popover-out',
           className
         )}
         {...props}
