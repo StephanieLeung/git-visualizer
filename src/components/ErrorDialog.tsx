@@ -19,6 +19,8 @@ function failureTitle([command, option]: string[]): string {
       return option === 'pop' ? 'Failed to unstash' : 'Failed to stash'
     case 'checkout':
       return option === '-b' ? 'Failed to create branch' : 'Failed to switch branch'
+    case 'reset':
+      return 'Failed to reset'
     default:
       return 'Error'
   }

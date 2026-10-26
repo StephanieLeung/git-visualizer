@@ -9,13 +9,21 @@ import {
   type MouseEvent as ReactMouseEvent
 } from 'react'
 import { useCommitGraph } from '../../hooks/useCommitGraph'
-import { useGitActions } from '../../hooks/useGitActions'
+import { useGitActions, type ResetMode } from '../../hooks/useGitActions'
 import { LANE_WIDTH, ROW_HEIGHT, type LayoutNode } from '../../services/dagLayout'
 import { checkoutTarget, type CheckoutTarget } from '../../services/gitHistory'
 import { cn } from '../ui/utils'
-import { CARD_WIDTH, CommitCard, HEAD_CARD_HEIGHT, TIP_CARD_HEIGHT } from './CommitCard'
+import {
+  CARD_WIDTH,
+  COMMIT_CARD_HEIGHT,
+  CommitCard,
+  HEAD_CARD_HEIGHT,
+  TIP_CARD_HEIGHT,
+  type CardKind
+} from './CommitCard'
 import { LittleMan, LITTLEMAN_HEIGHT, LITTLEMAN_WIDTH } from './LittleMan'
 import { RefLabels } from './RefLabel'
+import { ResetDialog } from './ResetDialog'
 
 // Where lane 0 starts in the canvas; the gutter to its left is where LittleMan stands
 const GRAPH_LEFT = 96
@@ -39,6 +47,16 @@ const TIP_ROW_ACTIVE_CLASS = 'bg-[color-mix(in_srgb,var(--lane)_16%,transparent)
 const HEAD_ROW_ACTIVE_CLASS = 'bg-accent-fg/10 dark:bg-accent-fg/20'
 const HEAD_ROW_CLASS =
   'bg-accent-subtle hover:bg-accent-fg/10 dark:hover:bg-accent-fg/20 focus-visible:bg-accent-fg/10 dark:focus-visible:bg-accent-fg/20'
+// The commits the current branch can be reset to are most of the history, so they get no resting
+// tint: just a neutral one on hover or focus, and while their card is open
+const COMMIT_ROW_CLASS = 'hover:bg-hover focus-visible:bg-hover'
+const COMMIT_ROW_ACTIVE_CLASS = 'bg-hover'
+
+const CARD_HEIGHTS: Record<CardKind, number> = {
+  head: HEAD_CARD_HEIGHT,
+  tip: TIP_CARD_HEIGHT,
+  commit: COMMIT_CARD_HEIGHT
+}
 
 const centerX = (node: LayoutNode) => node.x + LANE_WIDTH / 2
 const centerY = (node: LayoutNode) => node.y + ROW_HEIGHT / 2
@@ -99,8 +117,9 @@ function GraphSkeleton() {
 }
 
 // The commit graph: SVG lanes and nodes over HTML rows, with LittleMan standing next to HEAD.
-// Branch tips and HEAD are interactive: hover for a card, click the row to pin it open. A tip's
-// card switches to the branch (as does double-clicking its row); HEAD's card holds the git actions.
+// HEAD, branch tips and the commits in the current branch's history are interactive: hover for a
+// card, click the row to pin it open. HEAD's card holds the git actions; a tip's switches to the
+// branch (as does double-clicking its row); a commit in HEAD's history can reset the branch to it.
 export function DAGGraph() {
   const layout = useCommitGraph()
   const actions = useGitActions()
@@ -108,6 +127,8 @@ export function DAGGraph() {
   // Commit whose card was clicked open; it stays until you click elsewhere or press Escape
   const [pinnedHash, setPinnedHash] = useState<string | null>(null)
   const [checkingOut, setCheckingOut] = useState<string | null>(null)
+  // Commit the reset dialog is asking about; null while it's closed
+  const [resetTarget, setResetTarget] = useState<{ hash: string; message: string } | null>(null)
   // A pinned card wins; otherwise whichever clickable row (or its card) is under the pointer
   const cardHash = pinnedHash ?? hoveredHash
   // The card on screen: the shown one, or, once it closes, the same one while it fades out
@@ -169,6 +190,23 @@ export function DAGGraph() {
     )
   }, [layout])
 
+  // Commits the current branch can be reset to: everything in its history below HEAD (merged-in
+  // commits included). None when HEAD is detached, since then there's no branch to move.
+  const resetTargets = useMemo(() => {
+    const head = layout?.nodes.find((n) => n.isHead)
+    const history = new Set<string>()
+    if (!head || isDetached(head)) return history
+    const stack = [...head.parents]
+    while (stack.length > 0) {
+      const hash = stack.pop()!
+      const node = nodesByHash.get(hash)
+      if (!node || history.has(hash)) continue
+      history.add(hash)
+      stack.push(...node.parents)
+    }
+    return history
+  }, [layout, nodesByHash])
+
   if (!layout) return <GraphSkeleton />
   if (layout.nodes.length === 0) {
     return (
@@ -182,7 +220,13 @@ export function DAGGraph() {
     )
   }
 
-  const isInteractive = (node: LayoutNode) => node.isHead || Boolean(targets.get(node.hash))
+  // What a row's card is, or null for a row that isn't clickable (a commit outside HEAD's history)
+  const cardKind = (node: LayoutNode): CardKind | null => {
+    if (node.isHead) return 'head'
+    if (targets.get(node.hash)) return 'tip'
+    return resetTargets.has(node.hash) ? 'commit' : null
+  }
+  const isInteractive = (node: LayoutNode) => cardKind(node) !== null
   const cardTop = (node: LayoutNode) => GRAPH_TOP + node.y + ROW_HEIGHT - CARD_OVERLAP
 
   const lanesWidth = layout.laneCount * LANE_WIDTH
@@ -192,9 +236,10 @@ export function DAGGraph() {
   const canvasHeight =
     Math.max(
       GRAPH_TOP + layout.nodes.length * ROW_HEIGHT,
-      ...layout.nodes
-        .filter(isInteractive)
-        .map((n) => cardTop(n) + (n.isHead ? HEAD_CARD_HEIGHT : TIP_CARD_HEIGHT))
+      ...layout.nodes.map((n) => {
+        const kind = cardKind(n)
+        return kind ? cardTop(n) + CARD_HEIGHTS[kind] : 0
+      })
     ) + 16
   const svgWidth = GRAPH_LEFT + lanesWidth
 
@@ -240,12 +285,36 @@ export function DAGGraph() {
     if (result.ok) closeCard()
   }
 
-  const rowLabel = (node: LayoutNode): string =>
-    node.isHead
-      ? `Current HEAD: ${node.message}`
-      : `Branch tip ${targets.get(node.hash)?.label}: ${node.message}`
+  // The reset dialog's confirm button: the card closes at once, and LittleMan walks down to the
+  // commit as HEAD moves there
+  const confirmReset = (mode: ResetMode) => {
+    if (!resetTarget) return
+    setResetTarget(null)
+    closeCard()
+    actions.reset(resetTarget.hash, mode)
+  }
 
+  const rowLabel = (node: LayoutNode): string => {
+    switch (cardKind(node)) {
+      case 'head':
+        return `Current HEAD: ${node.message}`
+      case 'tip':
+        return `Branch tip ${targets.get(node.hash)?.label}: ${node.message}`
+      default:
+        return `Commit ${node.hash.slice(0, 7)}: ${node.message}`
+    }
+  }
+
+  // Enter/Space pins the row's card. The arrow keys move between clickable rows: only HEAD and
+  // branch tips are Tab stops, since the commits between them can be most of the history.
   const onRowKeyDown = (event: ReactKeyboardEvent, node: LayoutNode) => {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault()
+      const rows = layout.nodes.filter(isInteractive)
+      const next = rows[rows.indexOf(node) + (event.key === 'ArrowDown' ? 1 : -1)]
+      if (next) document.querySelector<HTMLElement>(`[data-hash="${next.hash}"]`)?.focus()
+      return
+    }
     if (event.key !== 'Enter' && event.key !== ' ') return
     event.preventDefault()
     pin(node.hash, true)
@@ -255,7 +324,8 @@ export function DAGGraph() {
   // closing card keeps its instance, and so its contents, as it fades out
   const renderCard = (hash: string, closing: boolean) => {
     const node = nodesByHash.get(hash)
-    if (!node || !isInteractive(node)) return null
+    const kind = node && cardKind(node)
+    if (!node || !kind) return null
     const shared = {
       left: textLeft - 8,
       top: cardTop(node),
@@ -268,12 +338,14 @@ export function DAGGraph() {
       onPin: () => pin(node.hash),
       onDone: closeCard,
       closing,
-      onClosed: () => setLastCardHash((current) => (current === hash ? null : current))
+      onClosed: () => setLastCardHash((current) => (current === hash ? null : current)),
+      branch: currentBranch,
+      onReset: resetTargets.has(hash)
+        ? () => setResetTarget({ hash: node.hash, message: node.message })
+        : undefined
     }
 
-    if (node.isHead) {
-      return <CommitCard key={hash} {...shared} kind="head" branch={currentBranch} />
-    }
+    if (kind !== 'tip') return <CommitCard key={hash} {...shared} kind={kind} />
     return (
       <CommitCard
         key={hash}
@@ -295,7 +367,8 @@ export function DAGGraph() {
       >
         {/* Rows sit under the SVG, which ignores the pointer, so a row is hovered across its full width */}
         {layout.nodes.map((node) => {
-          const interactive = isInteractive(node)
+          const kind = cardKind(node)
+          const interactive = kind !== null
           const cardShown = cardHash === node.hash
           return (
             <div
@@ -304,7 +377,8 @@ export function DAGGraph() {
               // A click here pins this row's card rather than counting as clicking outside one
               data-pin-target={interactive ? true : undefined}
               role={interactive ? 'button' : undefined}
-              tabIndex={interactive ? 0 : undefined}
+              // Commit rows are reached with the arrow keys (see onRowKeyDown)
+              tabIndex={interactive ? (kind === 'commit' ? -1 : 0) : undefined}
               aria-label={interactive ? rowLabel(node) : undefined}
               aria-expanded={interactive ? pinnedHash === node.hash : undefined}
               onMouseEnter={interactive ? () => setHoveredHash(node.hash) : undefined}
@@ -321,16 +395,18 @@ export function DAGGraph() {
               onBlur={interactive ? (event) => leaveRow(node.hash, event.relatedTarget) : undefined}
               onClick={interactive ? () => pin(node.hash) : undefined}
               // The first click of the two has already pinned the card, which shows the progress
-              onDoubleClick={interactive && !node.isHead ? () => switchTo(node) : undefined}
+              onDoubleClick={kind === 'tip' ? () => switchTo(node) : undefined}
               onKeyDown={interactive ? (event) => onRowKeyDown(event, node) : undefined}
-              // Clickable rows are tinted at rest (HEAD blue, tips in their lane's colour) and
-              // deepen on hover and while their card is open; plain commits get neither
+              // HEAD and tips are tinted at rest (HEAD blue, tips in their lane's colour) and
+              // deepen on hover and while their card is open; commits in HEAD's history tint only
+              // then; other commits get nothing
               className={cn(
                 'absolute inset-x-0 flex items-center pr-4',
                 interactive &&
                   'cursor-pointer transition-colors duration-150 motion-reduce:transition-none',
-                node.isHead && cn(HEAD_ROW_CLASS, cardShown && HEAD_ROW_ACTIVE_CLASS),
-                !node.isHead && interactive && cn(TIP_ROW_CLASS, cardShown && TIP_ROW_ACTIVE_CLASS)
+                kind === 'head' && cn(HEAD_ROW_CLASS, cardShown && HEAD_ROW_ACTIVE_CLASS),
+                kind === 'tip' && cn(TIP_ROW_CLASS, cardShown && TIP_ROW_ACTIVE_CLASS),
+                kind === 'commit' && cn(COMMIT_ROW_CLASS, cardShown && COMMIT_ROW_ACTIVE_CLASS)
               )}
               style={
                 {
@@ -429,7 +505,7 @@ export function DAGGraph() {
                   <circle
                     cx={cx}
                     cy={cy}
-                    r={node.isHead ? (hovered ? 7 : 6) : 5}
+                    r={node.isHead ? (hovered ? 7 : 6) : hovered ? 6 : 5}
                     strokeWidth={2}
                     style={{ fill: node.color, stroke: 'var(--color-canvas)' }}
                   />
@@ -457,6 +533,15 @@ export function DAGGraph() {
         {/* Drawn last so it sits above every row */}
         {visibleCardHash && renderCard(visibleCardHash, cardHash === null)}
       </div>
+
+      {currentBranch && (
+        <ResetDialog
+          target={resetTarget}
+          branch={currentBranch}
+          onCancel={() => setResetTarget(null)}
+          onConfirm={confirmReset}
+        />
+      )}
     </div>
   )
 }

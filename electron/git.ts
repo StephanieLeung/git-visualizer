@@ -34,6 +34,16 @@ export interface GitRunResult {
   stderr: string
 }
 
+// What resetting the current branch to a commit would take off it (git:resetInfo)
+export interface ResetInfo {
+  // Commits after that one on the branch
+  commits: number
+  // How many of those the upstream already has; a plain push fails after resetting them away
+  pushed: number
+  // e.g. "origin/main", or null if the branch has no upstream
+  upstream: string | null
+}
+
 // Polled repo state (git:snapshot)
 export interface GitSnapshot {
   repoPath: string

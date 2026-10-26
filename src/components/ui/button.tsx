@@ -7,6 +7,9 @@ const VARIANTS = {
   // Blue; offset focus ring so it shows against the fill
   primary:
     'bg-accent text-fg-on-emphasis enabled:hover:bg-accent-hover focus-visible:outline-offset-2',
+  // Red, for confirming something that can't be undone
+  danger:
+    'bg-danger-emphasis text-fg-on-emphasis enabled:hover:bg-danger-emphasis-hover focus-visible:outline-offset-2',
   secondary: 'border border-btn-border bg-btn text-fg enabled:hover:bg-btn-hover',
   invisible: 'text-fg enabled:hover:bg-hover'
 }

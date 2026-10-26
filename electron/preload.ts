@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { GitRunResult, GitSnapshot } from './git'
+import type { GitRunResult, GitSnapshot, ResetInfo } from './git'
 import type { RecentRepo } from './recentRepos'
 import type { ThemePreference } from './settings'
 
@@ -12,6 +12,8 @@ const api = {
     history: (): Promise<string> => ipcRenderer.invoke('git:history'),
     // Local branches with no commits of their own yet (just created, still at their start commit)
     newBranches: (): Promise<string[]> => ipcRenderer.invoke('git:newBranches'),
+    // How many commits resetting the current branch to `hash` removes, and how many are pushed
+    resetInfo: (hash: string): Promise<ResetInfo> => ipcRenderer.invoke('git:resetInfo', hash),
     // Status, recent log, dirty/stash flags and a key that changes whenever refs move
     snapshot: (): Promise<GitSnapshot> => ipcRenderer.invoke('git:snapshot')
   },

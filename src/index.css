@@ -37,8 +37,12 @@
   --color-danger-fg: #cb2431;
   --color-danger-subtle: #ffeef0;
   --color-danger-border: #fdaeb7;
+  /* Destructive buttons: white text on red (≥4.5:1 in both themes) */
+  --color-danger-emphasis: #cb2431;
+  --color-danger-emphasis-hover: #b31d28;
   --color-attention-fg: #9a6700;
   --color-attention-subtle: #fff8c5;
+  --color-attention-border: #e3c26b;
   --color-selection: rgba(3, 102, 214, 0.2);
 
   /* Secondary buttons */
@@ -124,8 +128,11 @@
     --color-danger-fg: #f97583;
     --color-danger-subtle: rgba(248, 81, 73, 0.15);
     --color-danger-border: rgba(248, 81, 73, 0.4);
+    --color-danger-emphasis: #da3633;
+    --color-danger-emphasis-hover: #c93c37;
     --color-attention-fg: #d29922;
     --color-attention-subtle: rgba(187, 128, 9, 0.15);
+    --color-attention-border: rgba(187, 128, 9, 0.4);
     --color-selection: rgba(56, 139, 253, 0.4);
 
     --color-btn: #2f363d;

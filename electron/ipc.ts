@@ -7,7 +7,8 @@ import {
   requireRepo,
   setRepoPath,
   type GitRunResult,
-  type GitSnapshot
+  type GitSnapshot,
+  type ResetInfo
 } from './git'
 import { addRecentRepo, listRecentRepos, removeRecentRepo } from './recentRepos'
 import { getThemePreference, isThemePreference, setThemePreference } from './settings'
@@ -69,6 +70,28 @@ export function registerIpcHandlers(): void {
       })
     )
     return fresh.filter((name): name is string => name !== null)
+  })
+
+  // What resetting the current branch to `hash` would remove, for the reset dialog's summary.
+  // Pushed commits are those at or below where HEAD and its upstream meet.
+  ipcMain.handle('git:resetInfo', async (_event, hash: unknown): Promise<ResetInfo> => {
+    if (typeof hash !== 'string' || !/^[0-9a-f]{7,40}$/i.test(hash)) {
+      throw new Error('git:resetInfo expects a commit hash')
+    }
+    requireRepo()
+    const count = async (range: string) => {
+      const result = await git(['rev-list', '--count', range])
+      return result.error ? 0 : Number(result.stdout.trim()) || 0
+    }
+
+    const upstream = await git(['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}'])
+    const mergeBase = upstream.error ? null : await git(['merge-base', 'HEAD', '@{upstream}'])
+    return {
+      commits: await count(`${hash}..HEAD`),
+      pushed:
+        mergeBase && !mergeBase.error ? await count(`${hash}..${mergeBase.stdout.trim()}`) : 0,
+      upstream: upstream.error ? null : upstream.stdout.trim()
+    }
   })
 
   // Runs `git <args>` for a user action and reports whether it succeeded

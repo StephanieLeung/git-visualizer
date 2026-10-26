@@ -3,13 +3,24 @@ import type { ReactNode } from 'react'
 
 import { cn } from './utils'
 
-// GitHub Desktop's inline error banner
-function ErrorFlash({ children, className }: { children: ReactNode; className?: string }) {
+const VARIANTS = {
+  danger: 'border-danger-border bg-danger-subtle text-danger-fg',
+  warning: 'border-attention-border bg-attention-subtle text-attention-fg'
+}
+
+interface FlashProps {
+  children: ReactNode
+  className?: string
+}
+
+// GitHub Desktop's inline banner
+function Flash({ children, className, variant }: FlashProps & { variant: keyof typeof VARIANTS }) {
   return (
     <div
-      role="alert"
+      role={variant === 'danger' ? 'alert' : undefined}
       className={cn(
-        'flex items-start gap-2 rounded-md border border-danger-border bg-danger-subtle px-3 py-2 text-xs text-danger-fg',
+        'flex items-start gap-2 rounded-md border px-3 py-2 text-xs',
+        VARIANTS[variant],
         className
       )}
     >
@@ -20,4 +31,7 @@ function ErrorFlash({ children, className }: { children: ReactNode; className?: 
   )
 }
 
-export { ErrorFlash }
+const ErrorFlash = (props: FlashProps) => <Flash {...props} variant="danger" />
+const WarningFlash = (props: FlashProps) => <Flash {...props} variant="warning" />
+
+export { ErrorFlash, WarningFlash }
